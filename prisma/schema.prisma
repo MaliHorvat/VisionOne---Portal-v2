@@ -1,0 +1,352 @@
+// Shema VisionOne Portal. Stolpci ustrezajo sql/schema.sql (phpMyAdmin) in začetni migraciji.
+// Datumska polja so besedilo (YYYY-MM-DD ali RFC3339), kot v izvirni aplikaciji.
+// JSON (postavke, sheme, kontrolni seznami) je LONGTEXT. Skrivnosti so AES-GCM besedilo (enc:…).
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int     @id @default(autoincrement())
+  username   String  @unique(map: "users_username_key") @db.VarChar(191)
+  name       String? @db.VarChar(255)
+  hash       String  @db.VarChar(255)
+  role       String  @default("admin") @db.VarChar(32)
+  mustChange Int     @default(0) @map("must_change")
+  createdAt  String? @map("created_at") @db.VarChar(40)
+
+  @@map("users")
+}
+
+model Session {
+  token   String @id @db.VarChar(128)
+  userId  Int    @map("user_id")
+  expires String @db.VarChar(40)
+
+  @@index([userId], map: "sessions_user_id_idx")
+  @@map("sessions")
+}
+
+model Setting {
+  k String  @id @db.VarChar(191)
+  v String? @db.LongText
+
+  @@map("settings")
+}
+
+model Counter {
+  name String @id @db.VarChar(191)
+  n    Int    @default(0)
+
+  @@map("counters")
+}
+
+model Audit {
+  id     Int     @id @default(autoincrement())
+  at     String? @db.VarChar(40)
+  user   String? @db.VarChar(191)
+  action String? @db.VarChar(64)
+  ref    String? @db.VarChar(255)
+
+  @@index([at], map: "audit_at_idx")
+  @@map("audit")
+}
+
+model LoginAttempt {
+  id Int    @id @default(autoincrement())
+  ip String @db.VarChar(64)
+  at String @db.VarChar(40)
+
+  @@index([ip, at], map: "login_attempts_ip_at_idx")
+  @@map("login_attempts")
+}
+
+model Customer {
+  id          Int     @id @default(autoincrement())
+  createdAt   String? @map("created_at") @db.VarChar(40)
+  updatedAt   String? @map("updated_at") @db.VarChar(40)
+  kind        String? @db.VarChar(32)
+  name        String? @db.VarChar(255)
+  company     String? @db.VarChar(255)
+  vatId       String? @map("vat_id") @db.VarChar(64)
+  vatPayer    Int?    @map("vat_payer")
+  regNo       String? @map("reg_no") @db.VarChar(64)
+  address     String? @db.Text
+  post        String? @db.VarChar(32)
+  city        String? @db.VarChar(128)
+  country     String? @db.VarChar(128)
+  email       String? @db.VarChar(255)
+  phone       String? @db.VarChar(64)
+  contacts    String? @db.LongText
+  lat         Float?
+  lng         Float?
+  notes       String? @db.LongText
+  tags        String? @db.VarChar(255)
+  paymentDays Int?    @map("payment_days")
+
+  @@index([name], map: "customers_name_idx")
+  @@map("customers")
+}
+
+model Site {
+  id         Int     @id @default(autoincrement())
+  createdAt  String? @map("created_at") @db.VarChar(40)
+  updatedAt  String? @map("updated_at") @db.VarChar(40)
+  customerId Int?    @map("customer_id")
+  name       String? @db.VarChar(255)
+  address    String? @db.Text
+  post       String? @db.VarChar(32)
+  city       String? @db.VarChar(128)
+  lat        Float?
+  lng        Float?
+  accessInfo String? @map("access_info") @db.LongText
+  alarmCode  String? @map("alarm_code") @db.LongText
+  wifi       String? @db.LongText
+  internet   String? @db.Text
+  notes      String? @db.LongText
+
+  @@index([customerId], map: "sites_customer_id_idx")
+  @@map("sites")
+}
+
+model Equipment {
+  id            Int     @id @default(autoincrement())
+  createdAt     String? @map("created_at") @db.VarChar(40)
+  updatedAt     String? @map("updated_at") @db.VarChar(40)
+  customerId    Int?    @map("customer_id")
+  siteId        Int?    @map("site_id")
+  type          String? @db.VarChar(32)
+  name          String? @db.VarChar(255)
+  brand         String? @db.VarChar(128)
+  model         String? @db.VarChar(128)
+  serial        String? @db.VarChar(128)
+  ip            String? @db.VarChar(64)
+  mac           String? @db.VarChar(64)
+  vlan          String? @db.VarChar(32)
+  port          String? @db.VarChar(64)
+  firmware      String? @db.VarChar(128)
+  username      String? @db.VarChar(128)
+  password      String? @db.LongText
+  location      String? @db.VarChar(255)
+  installDate   String? @map("install_date") @db.VarChar(40)
+  warrantyUntil String? @map("warranty_until") @db.VarChar(40)
+  status        String? @db.VarChar(32)
+  productId     Int?    @map("product_id")
+  notes         String? @db.LongText
+
+  @@index([customerId], map: "equipment_customer_id_idx")
+  @@index([siteId], map: "equipment_site_id_idx")
+  @@index([ip], map: "equipment_ip_idx")
+  @@map("equipment")
+}
+
+model Network {
+  id           Int     @id @default(autoincrement())
+  createdAt    String? @map("created_at") @db.VarChar(40)
+  updatedAt    String? @map("updated_at") @db.VarChar(40)
+  customerId   Int?    @map("customer_id")
+  siteId       Int?    @map("site_id")
+  name         String? @db.VarChar(255)
+  vlan         String? @db.VarChar(32)
+  subnet       String? @db.VarChar(64)
+  gateway      String? @db.VarChar(64)
+  dns          String? @db.VarChar(255)
+  dhcpRange    String? @map("dhcp_range") @db.VarChar(128)
+  publicIp     String? @map("public_ip") @db.VarChar(64)
+  ddns         String? @db.VarChar(255)
+  portForwards String? @map("port_forwards") @db.LongText
+  notes        String? @db.LongText
+
+  @@index([customerId], map: "networks_customer_id_idx")
+  @@index([siteId], map: "networks_site_id_idx")
+  @@map("networks")
+}
+
+model Document {
+  id          Int     @id @default(autoincrement())
+  createdAt   String? @map("created_at") @db.VarChar(40)
+  updatedAt   String? @map("updated_at") @db.VarChar(40)
+  customerId  Int?    @map("customer_id")
+  siteId      Int?    @map("site_id")
+  workorderId Int?    @map("workorder_id")
+  kind        String? @db.VarChar(32)
+  title       String? @db.VarChar(255)
+  filename    String? @db.VarChar(255)
+  mime        String? @db.VarChar(128)
+  size        Int?
+  path        String? @db.Text
+
+  @@index([customerId], map: "documents_customer_id_idx")
+  @@index([siteId], map: "documents_site_id_idx")
+  @@index([workorderId], map: "documents_workorder_id_idx")
+  @@map("documents")
+}
+
+model Diagram {
+  id           Int     @id @default(autoincrement())
+  createdAt    String? @map("created_at") @db.VarChar(40)
+  updatedAt    String? @map("updated_at") @db.VarChar(40)
+  customerId   Int?    @map("customer_id")
+  siteId       Int?    @map("site_id")
+  name         String? @db.VarChar(255)
+  backgroundId Int?    @map("background_id")
+  items        String? @db.LongText
+
+  @@index([customerId], map: "diagrams_customer_id_idx")
+  @@index([siteId], map: "diagrams_site_id_idx")
+  @@map("diagrams")
+}
+
+model WorkOrder {
+  id          Int     @id @default(autoincrement())
+  createdAt   String? @map("created_at") @db.VarChar(40)
+  updatedAt   String? @map("updated_at") @db.VarChar(40)
+  customerId  Int?    @map("customer_id")
+  siteId      Int?    @map("site_id")
+  contractId  Int?    @map("contract_id")
+  title       String? @db.VarChar(255)
+  type        String? @db.VarChar(32)
+  status      String? @db.VarChar(32)
+  priority    String? @db.VarChar(32)
+  start       String? @db.VarChar(40)
+  end         String? @db.VarChar(40)
+  technician  String? @db.VarChar(255)
+  description String? @db.LongText
+  report      String? @db.LongText
+  checklist   String? @db.LongText
+  timeEntries String? @map("time_entries") @db.LongText
+  materials   String? @db.LongText
+  signature   String? @db.LongText
+  signedBy    String? @map("signed_by") @db.VarChar(255)
+  signedAt    String? @map("signed_at") @db.VarChar(40)
+
+  @@index([customerId], map: "workorders_customer_id_idx")
+  @@index([siteId], map: "workorders_site_id_idx")
+  @@index([contractId], map: "workorders_contract_id_idx")
+  @@index([start], map: "workorders_start_idx")
+  @@map("workorders")
+}
+
+model Product {
+  id        Int     @id @default(autoincrement())
+  createdAt String? @map("created_at") @db.VarChar(40)
+  updatedAt String? @map("updated_at") @db.VarChar(40)
+  kind      String? @db.VarChar(32)
+  sku       String? @db.VarChar(64)
+  name      String? @db.VarChar(255)
+  brand     String? @db.VarChar(128)
+  category  String? @db.VarChar(128)
+  unit      String? @db.VarChar(32)
+  price     Float?
+  cost      Float?
+  vatRate   Float?  @map("vat_rate")
+  stock     Float?
+  minStock  Float?  @map("min_stock")
+  location  String? @db.VarChar(255)
+  notes     String? @db.LongText
+
+  @@index([sku], map: "products_sku_idx")
+  @@index([name], map: "products_name_idx")
+  @@map("products")
+}
+
+model StockMove {
+  id        Int     @id @default(autoincrement())
+  createdAt String? @map("created_at") @db.VarChar(40)
+  updatedAt String? @map("updated_at") @db.VarChar(40)
+  productId Int?    @map("product_id")
+  qty       Float?
+  reason    String? @db.VarChar(255)
+  ref       String? @db.VarChar(255)
+
+  @@index([productId], map: "stock_moves_product_id_idx")
+  @@map("stock_moves")
+}
+
+model Quote {
+  id          Int     @id @default(autoincrement())
+  createdAt   String? @map("created_at") @db.VarChar(40)
+  updatedAt   String? @map("updated_at") @db.VarChar(40)
+  customerId  Int?    @map("customer_id")
+  siteId      Int?    @map("site_id")
+  number      String? @db.VarChar(64)
+  title       String? @db.VarChar(255)
+  date        String? @db.VarChar(40)
+  validUntil  String? @map("valid_until") @db.VarChar(40)
+  status      String? @db.VarChar(32)
+  lines       String? @db.LongText
+  discountPct Float?  @map("discount_pct")
+  notes       String? @db.LongText
+  net         Float?
+  vat         Float?
+  total       Float?
+  invoiceId   Int?    @map("invoice_id")
+
+  @@index([customerId], map: "quotes_customer_id_idx")
+  @@index([siteId], map: "quotes_site_id_idx")
+  @@index([number], map: "quotes_number_idx")
+  @@map("quotes")
+}
+
+model Invoice {
+  id            Int     @id @default(autoincrement())
+  createdAt     String? @map("created_at") @db.VarChar(40)
+  updatedAt     String? @map("updated_at") @db.VarChar(40)
+  customerId    Int?    @map("customer_id")
+  siteId        Int?    @map("site_id")
+  quoteId       Int?    @map("quote_id")
+  number        String? @db.VarChar(64)
+  title         String? @db.VarChar(255)
+  date          String? @db.VarChar(40)
+  serviceDate   String? @map("service_date") @db.VarChar(40)
+  dueDate       String? @map("due_date") @db.VarChar(40)
+  status        String? @db.VarChar(32)
+  lines         String? @db.LongText
+  discountPct   Float?  @map("discount_pct")
+  notes         String? @db.LongText
+  net           Float?
+  vat           Float?
+  total         Float?
+  paidAmount    Float?  @map("paid_amount")
+  paidDate      String? @map("paid_date") @db.VarChar(40)
+  paymentMethod String? @map("payment_method") @db.VarChar(32)
+  reference     String? @db.VarChar(64)
+  issuedAt      String? @map("issued_at") @db.VarChar(40)
+
+  @@index([customerId], map: "invoices_customer_id_idx")
+  @@index([siteId], map: "invoices_site_id_idx")
+  @@index([quoteId], map: "invoices_quote_id_idx")
+  @@index([number], map: "invoices_number_idx")
+  @@index([status], map: "invoices_status_idx")
+  @@index([dueDate], map: "invoices_due_date_idx")
+  @@map("invoices")
+}
+
+model Contract {
+  id             Int     @id @default(autoincrement())
+  createdAt      String? @map("created_at") @db.VarChar(40)
+  updatedAt      String? @map("updated_at") @db.VarChar(40)
+  customerId     Int?    @map("customer_id")
+  siteId         Int?    @map("site_id")
+  title          String? @db.VarChar(255)
+  startDate      String? @map("start_date") @db.VarChar(40)
+  endDate        String? @map("end_date") @db.VarChar(40)
+  intervalMonths Int?    @map("interval_months")
+  nextDate       String? @map("next_date") @db.VarChar(40)
+  price          Float?
+  sla            String? @db.VarChar(255)
+  active         Int?
+  checklist      String? @db.LongText
+  notes          String? @db.LongText
+
+  @@index([customerId], map: "contracts_customer_id_idx")
+  @@index([siteId], map: "contracts_site_id_idx")
+  @@index([nextDate], map: "contracts_next_date_idx")
+  @@map("contracts")
+}
